@@ -1,0 +1,25 @@
+#!/usr/bin/env python
+
+# http://bloc.eurion.net/archives/2012/zeitgeist-python-api-tutorial/
+# http://eurion.net/zeitgeist/docs/0.8.2/client.html
+
+from wdid.app import App
+from wdid.lib import parse_datetime_range
+import datetime as dt
+import sys
+
+if __name__ == '__main__':
+    times = sys.argv[1:]
+    start_time, end_time = parse_datetime_range(" ".join(times or []))
+    start_time = start_time or dt.datetime.combine(dt.date.today(), dt.time())
+    end_time = end_time or start_time.replace(hour=23, minute=59, second=59)
+
+    start_time = int(start_time.strftime('%s'))*1000
+    end_time = int(end_time.strftime('%s'))*1000
+
+    app = App()
+    app.list(start_time, end_time)
+
+    # Start a mainloop - note: the Qt mainloop also works
+    from gi.repository import GLib
+    GLib.MainLoop().run()
