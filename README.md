@@ -21,3 +21,6 @@ $ hamster-cli list
 - hoe om te gaan met browser events?
   - aantal pagina's achter elkaar hetzelfde (ook 5?)
 - find_related_uris_for_events??
+
+- Filteren op identifier
+- Filteren op document/website

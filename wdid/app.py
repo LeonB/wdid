@@ -7,10 +7,15 @@ from urlparse import urlparse
 import re
 from wdid.task import Task
 import datetime as dt
+from prettytable import PrettyTable
 
 class App:
 
-    tasks = []
+    # tasks = []
+    document_tasks = []
+    website_tasks = []
+    document_events = None
+    website_events = None
 
     project_directories = [
         '~/Public',
@@ -32,33 +37,86 @@ class App:
 
     def list(self, start_time, end_time):
         zeitgeist = ZeitgeistClient()
-        zeitgeist.find_events_for_templates(self.templates, self.on_events_received,
+
+        # Find all document events
+        zeitgeist.find_events_for_templates(
+                [self.templates[0]],
+                self.on_document_events_received,
+                num_events=0,
+                timerange=TimeRange(start_time, end_time),
+                result_type=ResultType.LeastRecentEvents
+        )
+        # Find all website events
+        zeitgeist.find_events_for_templates(
+                [self.templates[1]],
+                self.on_website_events_received,
                 num_events=0,
                 timerange=TimeRange(start_time, end_time),
                 result_type=ResultType.LeastRecentEvents
         )
 
-    def on_events_received(self, events):
+    def on_document_events_received(self, events):
+        self.document_events = events
+
+        if self.document_events and self.website_events:
+            self.process_events()
+            self.print_tasks()
+
+            # Stop the program
+            sys.exit()
+
+    def on_website_events_received(self, events):
+        self.website_events = events
+
+        if self.document_events and self.website_events:
+            self.process_events()
+            self.print_tasks()
+
+            # Stop the program
+            sys.exit()
+
+    def process_events(self):
+        self.process_document_events(self.document_events)
+        self.process_website_events(self.website_events)
+
+    def print_tasks(self):
+        tasks = self.merge_tasks(self.document_tasks, self.website_tasks)
+
+        t = PrettyTable(['description', 'start', 'end', 'duration'])
+        t.align['description'] = 'r'
+
+        for task in tasks:
+            t.add_row([
+                task.identifier,
+                task.start_time,
+                task.end_time,
+                task.duration()
+            ])
+        #     print "------------"
+        #     print "- identifier: %s" % task.identifier
+        #     print "- start_time: %s" % task.start_time
+        #     print "- end_time: %s" % task.end_time
+        #     print "- reason: %s" % task.reason
+        #     print "- duration: %s" % task.duration()
+        #     # print "- uris: %s" % task.uris
+
+        print t
+
+    def merge_tasks(self, tasks1, tasks2):
+        tasks = tasks1 + tasks2
+        tasks.sort(
+                cmp=lambda x,y: cmp(x.start_time, y.start_time),
+                )
+        return tasks
+
+    def process_document_events(self, events):
         for event in events:
-            self.process_event(event)
+            self.process_event(event, self.document_tasks)
 
         # if start_time == end_time: remove the last task
-        self.check_last_task()
+        self.check_last_task(self.document_tasks)
 
-        for task in self.tasks:
-            # continue
-            event_datetime = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(int(event.timestamp)/1000.0))
-            print "------------"
-            print "- identifier: %s" % task.identifier
-            print "- start_time: %s" % task.start_time
-            print "- end_time: %s" % task.end_time
-            print "- reason: %s" % task.reason
-            # print "- uris: %s" % task.uris
-
-        # Stop the program
-        sys.exit()
-
-    def process_event(self, event):
+    def process_event(self, event, tasks):
         uri = str(event.subjects[0].uri)
         identifier = self.get_identifier_from_uri(uri)
         event_timestamp = int(event.timestamp)/1000
@@ -67,24 +125,10 @@ class App:
         if not identifier:
             return None
 
-        # Websites alleen processen if
-        # 
-        # last_task niet processen als vorige taak == file
-        # èn meer dan 5 min
-        if last_task and last_task.identifier == identifier:
-            if diff.seconds > self.difference_between_tasks:
-
-        # website overslaan als de vorige task een file is
-        # en de volgende task minder dan 5 minuten daarop volgt
-        # Je moet daarvoor wel door alle events loopen
-
-        if len(self.tasks):
-            last_task = self.tasks[-1]
+        if len(tasks):
+            last_task = tasks[-1]
         else:
             last_task = None
-
-        # if identifier != 'imgur.com':
-        #     return None
 
         # Check if the last task is the same
         if last_task and last_task.identifier == identifier:
@@ -101,8 +145,8 @@ class App:
                 new_task.uris.add(uri)
                 new_task.reason = 'timediff'
 
-                self.check_last_task()
-                self.tasks.append(new_task)
+                self.check_last_task(tasks)
+                tasks.append(new_task)
             else:
                 last_task.end_time = event_datetime
                 last_task.uris.add(uri)
@@ -110,8 +154,8 @@ class App:
             # Check if the last task can be removed
             # If it can be removed: check the event again against
             # the adjusted task list
-            if self.check_last_task():
-                return self.process_event(event)
+            if self.check_last_task(tasks):
+                return self.process_event(event, tasks)
 
             new_task = Task()
             new_task.identifier = identifier
@@ -120,9 +164,9 @@ class App:
             new_task.uris.add(uri)
             new_task.reason = 'identifier'
 
-            self.tasks.append(new_task)
+            tasks.append(new_task)
 
-        return
+        return tasks
 
         # print "- %s" % event
         print "------------"
@@ -142,16 +186,46 @@ class App:
         print "- project: %s" % project
         # print "- %s" % event.__class__
 
-    def check_last_task(self):
-        if not len(self.tasks):
+    def check_last_task(self, tasks):
+        if not len(tasks):
             return
 
-        last_task = self.tasks[-1]
+        last_task = tasks[-1]
 
         # If start_time == end_time (with a 1 second window): remove the task
         if (last_task.end_time - last_task.start_time).seconds < 2:
-            self.tasks.remove(last_task)
+            tasks.remove(last_task)
             return last_task
+
+    def process_website_events(self, events):
+        # Remove all events that overlap existing (document) tasks
+        for event in events:
+            event_timestamp = int(event.timestamp)/1000
+            event_datetime = dt.datetime.fromtimestamp(event_timestamp)
+
+            if self.has_overlap_with_existing_tasks(event_datetime,
+                    self.website_tasks):
+                events.remove(event)
+
+        for event in events:
+            self.process_event(event, self.website_tasks)
+
+        # if start_time == end_time: remove the last task
+        self.check_last_task(self.website_tasks)
+
+    def has_overlap_with_existing_tasks(self, datetime, tasks):
+        for task in tasks:
+            # tasks is order by times
+            # so if start_time is already bigger then datetime
+            # there aren't going to be any smaller ones
+            if task.start_time > datetime:
+                return False
+
+            if task.start_time < datetime and task.end_time > datetime:
+                return True
+
+        # Couldn't find anything
+        return False
 
     def get_project_directories_by_detail(self):
         projects = self.project_directories
@@ -269,4 +343,3 @@ class App:
 # # tmpl2 = Event.new_for_values(subject_interpretation=Interpretation.VIDEO)
 # # zeitgeist.find_events_for_templates([tmpl1, tmpl2],
 # #                                     on_events_received, num_events=5)
-
