@@ -29,7 +29,9 @@ class App:
         Event.new_for_values(subject_interpretation=Interpretation.WEBSITE)
     ]
 
+    minimum_duration = 2 * 60
     difference_between_tasks = 5 * 60
+    # difference_between_tasks = 5
     # for websites 2 minutes?
     # difference_between_tasks = 2 * 60
 
@@ -59,8 +61,8 @@ class App:
         self.document_events = events
 
         if self.document_events and self.website_events:
-            self.process_events()
-            self.print_tasks()
+            tasks = self.process_events()
+            self.print_tasks(tasks)
 
             # Stop the program
             sys.exit()
@@ -69,8 +71,8 @@ class App:
         self.website_events = events
 
         if self.document_events and self.website_events:
-            self.process_events()
-            self.print_tasks()
+            tasks = self.process_events()
+            self.print_tasks(tasks)
 
             # Stop the program
             sys.exit()
@@ -79,9 +81,19 @@ class App:
         self.process_document_events(self.document_events)
         self.process_website_events(self.website_events)
 
-    def print_tasks(self):
         tasks = self.merge_tasks(self.document_tasks, self.website_tasks)
+        tasks = self.combine_tasks_based_on_project(tasks)
+        tasks = self.filter_tasks(tasks)
+        return tasks
 
+    def filter_tasks(self, tasks):
+        for task in tasks[:]:
+            if task.duration().seconds < self.minimum_duration:
+                tasks.remove(task)
+
+        return tasks
+
+    def print_tasks(self, tasks):
         t = PrettyTable(['description', 'start', 'end', 'duration'])
         t.align['description'] = 'r'
 
@@ -102,6 +114,12 @@ class App:
 
         print t
 
+        total_duration = dt.timedelta()
+        for task in tasks:
+            total_duration += task.duration()
+
+        print total_duration
+
     def merge_tasks(self, tasks1, tasks2):
         tasks = tasks1 + tasks2
         tasks.sort(
@@ -109,16 +127,36 @@ class App:
                 )
         return tasks
 
+    def combine_tasks_based_on_project(self, tasks):
+        previous_task = None
+
+        # Make a copy ([:]) of the list and iterate through that
+        for task in tasks[:]:
+            if not previous_task:
+                previous_task = task
+                continue
+
+            if not task.project:
+                previous_task = task
+                continue
+
+            if previous_task.project == task.project:
+                previous_task.end_time = task.end_time
+                tasks.remove(task)
+                continue
+
+            previous_task = task
+
+        return tasks
+
     def process_document_events(self, events):
         for event in events:
             self.process_event(event, self.document_tasks)
 
-        # if start_time == end_time: remove the last task
-        self.check_last_task(self.document_tasks)
-
     def process_event(self, event, tasks):
         uri = str(event.subjects[0].uri)
         identifier = self.get_identifier_from_uri(uri)
+        project = self.get_project_from_uri(uri)
         event_timestamp = int(event.timestamp)/1000
         event_datetime = dt.datetime.fromtimestamp(event_timestamp)
 
@@ -140,25 +178,20 @@ class App:
             if diff.seconds > self.difference_between_tasks:
                 new_task = Task()
                 new_task.identifier = identifier
+                new_task.project = project
                 new_task.start_time = event_datetime
                 new_task.end_time = event_datetime
                 new_task.uris.add(uri)
                 new_task.reason = 'timediff'
 
-                self.check_last_task(tasks)
                 tasks.append(new_task)
             else:
                 last_task.end_time = event_datetime
                 last_task.uris.add(uri)
         else:
-            # Check if the last task can be removed
-            # If it can be removed: check the event again against
-            # the adjusted task list
-            if self.check_last_task(tasks):
-                return self.process_event(event, tasks)
-
             new_task = Task()
             new_task.identifier = identifier
+            new_task.project = project
             new_task.start_time = event_datetime
             new_task.end_time = event_datetime
             new_task.uris.add(uri)
@@ -186,17 +219,6 @@ class App:
         print "- project: %s" % project
         # print "- %s" % event.__class__
 
-    def check_last_task(self, tasks):
-        if not len(tasks):
-            return
-
-        last_task = tasks[-1]
-
-        # If start_time == end_time (with a 1 second window): remove the task
-        if (last_task.end_time - last_task.start_time).seconds < 2:
-            tasks.remove(last_task)
-            return last_task
-
     def process_website_events(self, events):
         # Remove all events that overlap existing (document) tasks
         for event in events:
@@ -209,9 +231,6 @@ class App:
 
         for event in events:
             self.process_event(event, self.website_tasks)
-
-        # if start_time == end_time: remove the last task
-        self.check_last_task(self.website_tasks)
 
     def has_overlap_with_existing_tasks(self, datetime, tasks):
         for task in tasks:
@@ -248,7 +267,27 @@ class App:
         else:
             return str(identifier)
 
+    def get_project_from_uri(self, uri):
+        pieces = urlparse(uri)
+        project = None
+
+        if pieces.scheme == 'file':
+            identifier = self.get_identifier_from_uri_file(uri)
+            if identifier:
+                project = identifier.split(os.sep)[-1]
+        else:
+            project = self.get_identifier_from_uri_http(uri)
+
+        if not project:
+            return None
+        else:
+            return str(project)
+
     def get_identifier_from_uri_http(self, uri):
+        hostname = urlparse(uri).hostname
+        hostname = re.sub('www\.', '', hostname)
+        return hostname
+
         hostname = urlparse(uri).hostname.split(".")
         hostname = '.'.join(len(hostname[-2]) < 4 and hostname[-3:] or hostname[-2:])
         return hostname
