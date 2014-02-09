@@ -60,7 +60,7 @@ class App:
     def on_document_events_received(self, events):
         self.document_events = events
 
-        if self.document_events and self.website_events:
+        if self.document_events != None and self.website_events != None:
             tasks = self.process_events()
             self.print_tasks(tasks)
 
@@ -70,7 +70,7 @@ class App:
     def on_website_events_received(self, events):
         self.website_events = events
 
-        if self.document_events and self.website_events:
+        if self.document_events != None and self.website_events != None:
             tasks = self.process_events()
             self.print_tasks(tasks)
 
