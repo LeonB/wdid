@@ -124,7 +124,7 @@ class PrettyTable(object):
             self._widths = []
 
         # Options
-        self._options = "start end fields header border sortby reversesort sort_key attributes format hrules vrules".split()
+        self._options = "start end fields header footer border sortby reversesort sort_key attributes format hrules vrules".split()
         self._options.extend("int_format float_format padding_width left_padding_width right_padding_width".split())
         self._options.extend("vertical_char horizontal_char junction_char header_style valign xhtml print_empty".split())
         for option in self._options:
@@ -142,6 +142,10 @@ class PrettyTable(object):
         else:
             self._header = True
         self._header_style = kwargs["header_style"] or None
+        if kwargs["footer"] in (True, False):
+            self._footer = kwargs["footer"]
+        else:
+            self._footer = False
         if kwargs["border"] in (True, False):
             self._border = kwargs["border"]
         else:
@@ -268,7 +272,7 @@ class PrettyTable(object):
             self._validate_vrules(option, val)
         elif option in ("fields"):
             self._validate_all_field_names(option, val)
-        elif option in ("header", "border", "reversesort", "xhtml", "print_empty"):
+        elif option in ("header", "footer", "border", "reversesort", "xhtml", "print_empty"):
             self._validate_true_or_false(option, val)
         elif option in ("header_style"):
             self._validate_header_style(val)
@@ -553,6 +557,18 @@ class PrettyTable(object):
         self._validate_header_style(val)
         self._header_style = val
     header_style = property(_get_header_style, _set_header_style)
+
+    def _get_footer(self):
+        """Controls printing of table footer
+
+        Arguments:
+
+        footer - print a footer showing field names (True or False)"""
+        return self._footer
+    def _set_footer(self, val):
+        self._validate_option("footer", val)
+        self._footer = val
+    footer = property(_get_footer, _set_footer)
 
     def _get_border(self):
         """Controls printing of border around table
@@ -985,6 +1001,8 @@ class PrettyTable(object):
 
         # Turn all data in all rows into Unicode, formatted as desired
         formatted_rows = self._format_rows(rows, options)
+        if options["footer"]:
+            options["footer_values"] = formatted_rows.pop()
 
         # Compute column widths
         self._compute_widths(formatted_rows, options)
@@ -1000,7 +1018,9 @@ class PrettyTable(object):
         for row in formatted_rows:
             lines.append(self._stringify_row(row, options))
 
-        # Add bottom of border
+        # Add footer or bottom of border
+        if options["footer"]:
+            lines.append(self._stringify_footer(options))
         if options["border"] and options["hrules"] == FRAME:
             lines.append(self._hrule)
 
@@ -1150,6 +1170,49 @@ class PrettyTable(object):
             bits[y] = "".join(bits[y])
 
         return "\n".join(bits)
+
+    def _stringify_footer(self, options):
+
+        bits = []
+        lpad, rpad = self._get_padding_widths(options)
+        if options["border"]:
+            if options["hrules"] in (ALL, FRAME):
+                bits.append(self._hrule)
+                bits.append("\n")
+            if options["vrules"] in (ALL, FRAME):
+                bits.append(options["vertical_char"])
+            else:
+                bits.append(" ")
+        # For tables with no data or field names
+        if not self._field_names:
+            if options["vrules"] in (ALL, FRAME):
+                bits.append(options["vertical_char"])
+            else:
+                bits.append(" ")
+
+        row = options['footer_values']
+        for index, field, value, width, in zip(range(0,len(row)), self._field_names, row, self._widths):
+            if options["fields"] and field not in options["fields"]:
+                continue
+            value = str(value)
+            if self._header_style == "cap":
+                cell_value = value.capitalize()
+            elif self._header_style == "title":
+                cell_value = value.title()
+            elif self._header_style == "upper":
+                cell_value = value.upper()
+            elif self._header_style == "lower":
+                cell_value = value.lower()
+            else:
+                cell_value = value
+            bits.append(" " * lpad + self._justify(cell_value, width, self._align[field]) + " " * rpad)
+            if options["border"]:
+                if options["vrules"] == ALL:
+                    bits.append(options["vertical_char"])
+                else:
+                    bits.append(" ")
+
+        return "".join(bits)
 
     ##############################
     # HTML STRING METHODS        #

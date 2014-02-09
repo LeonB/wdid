@@ -7,7 +7,7 @@ from urlparse import urlparse
 import re
 from wdid.task import Task
 import datetime as dt
-from prettytable import PrettyTable
+from wdid.lib.prettytable import PrettyTable
 
 class App:
 
@@ -98,6 +98,7 @@ class App:
 
     def print_tasks(self, tasks):
         t = PrettyTable(['description', 'start', 'end', 'duration'])
+        t.footer = True
         t.align['description'] = 'r'
 
         for task in tasks:
@@ -107,6 +108,7 @@ class App:
                 task.end_time,
                 task.duration()
             ])
+
         #     print "------------"
         #     print "- identifier: %s" % task.identifier
         #     print "- start_time: %s" % task.start_time
@@ -115,13 +117,19 @@ class App:
         #     print "- duration: %s" % task.duration()
         #     # print "- uris: %s" % task.uris
 
-        print t
-
         total_duration = dt.timedelta()
         for task in tasks:
             total_duration += task.duration()
 
-        print total_duration
+        # Add footer with total duration
+        t.add_row([
+            '',
+            '',
+            '',
+            total_duration
+        ])
+
+        print t
 
     def merge_tasks(self, tasks1, tasks2):
         tasks = tasks1 + tasks2
