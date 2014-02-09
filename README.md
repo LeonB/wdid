@@ -4,8 +4,22 @@
 activities / logs and creates an ascii table with all the stuff you did in a
 particular period.
 
-The script tries to be smart about the acitivities and combines different events
-if it thinks they relate.
+If events of the same type (document, website) happen shorty after eachother
+they are combined into one task. So if I request a webpage on reddit 10 times in
+5 minutes those events are combined in one task (browsing reddit.com) with a
+duration of 5 minutes.
+
+The script tries to be smart about acitivities and combines different event
+types if it thinks they relate. This is done by guessing the project name for a
+particula event.
+
+- If the event included the edditing of a file the file's projectdir is used as
+  the projectname
+- If the event was a website event, the name of the website is used as the
+  project name
+
+If the projectnames match for subsequent events they are combined in one task.
+
 
 This script contains workflow specific logic so I would be very supprised if
 this would be useful for someone else.
