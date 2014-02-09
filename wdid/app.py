@@ -5,7 +5,6 @@ import time
 import os
 from wdid.task import Task
 from wdid.lib.prettytable import PrettyTable
-import wdid.event
 import wdid.config
 import datetime as dt
 

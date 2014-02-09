@@ -6,6 +6,7 @@ import wdid.config
 import re
 import sys
 from zeitgeist.datamodel import Symbol
+import urllib
 
 class Task:
     end_time = None
@@ -77,6 +78,7 @@ class DocumentTask(Task):
             project_dir_norm = os.path.normpath(
                     os.path.expanduser(os.path.expandvars(project_dir))
                     )
+            project_dir_norm = urllib.quote(project_dir_norm)
 
             if uri_dir.startswith(project_dir_norm):
                 # return project_dir + one subdir
