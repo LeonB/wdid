@@ -67,3 +67,4 @@ for an explanation of the possible (datetime) parameters.
 
 - [Project hamster](https://github.com/projecthamster/hamster/) (I copied the
   datetime paramter parsing from hamster-cli)
+- [PrettyTable](https://pypi.python.org/pypi/PrettyTable)
