@@ -51,8 +51,8 @@ $ bin/wdid 2014-02-08 08:00
 +----------------------------+---------------------+---------------------+----------+
 ```
 
-See the (documentation of hamster-cli)[https://github.com/projecthamster/hamster/blob/master/src/hamster-cli#L350]
-for a explanation of the possible (datetime) parameters.
+See the [documentation of hamster-cli](https://github.com/projecthamster/hamster/blob/master/src/hamster-cli#L350)
+for an explanation of the possible (datetime) parameters.
 
 # Dependencies
 
