@@ -81,9 +81,12 @@ class App:
         self.process_document_events(self.document_events)
         self.process_website_events(self.website_events)
 
+        # Merge the two different kind of tasks in one list
         tasks = self.merge_tasks(self.document_tasks, self.website_tasks)
-        tasks = self.combine_tasks_based_on_project(tasks)
+        # First filter
         tasks = self.filter_tasks(tasks)
+        # Then combine
+        tasks = self.combine_tasks_based_on_project(tasks)
         return tasks
 
     def filter_tasks(self, tasks):
