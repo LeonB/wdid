@@ -16,12 +16,6 @@ class App:
     document_events = None
     website_events = None
 
-    # difference_between_tasks = 5
-    # for websites 2 minutes?
-    # difference_between_tasks = 2 * 60
-
-    # Website alleen als er geen last_task is??..
-
     def list(self, start_time, end_time):
         zeitgeist = ZeitgeistClient()
 
@@ -167,7 +161,7 @@ class App:
             # Check if the time between the last event and this new
             # event hasn't been too long
             # If it has been too long: create new task
-            if diff.seconds > wdid.config.difference_between_tasks:
+            if diff.seconds > wdid.config.max_difference_between_tasks:
                 # new_task.uris.add(uri)
                 new_task.reason = 'timediff'
                 tasks.append(new_task)

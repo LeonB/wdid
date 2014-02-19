@@ -14,8 +14,7 @@ templates = [
 ]
 
 minimum_duration = 2 * 60
-difference_between_tasks = 5 * 60
-
+max_difference_between_tasks = 5 * 60
 
 def get_project_directories_by_detail():
     projects = project_directories
