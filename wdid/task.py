@@ -1,11 +1,14 @@
-from zeitgeist.datamodel import Interpretation
+import gi
+gi.require_version('Zeitgeist', '2.0')
+from gi.repository import Zeitgeist
+# from zeitgeist.datamodel import Interpretation
+
 import datetime as dt
-from urlparse import urlparse
+from urllib.parse import urlparse
 import os
 import wdid.config
 import re
 import sys
-from zeitgeist.datamodel import Symbol
 import urllib
 
 class Task:
@@ -26,7 +29,7 @@ class Task:
         elif Symbol.uri_is_child_of(interpretation, Interpretation.WEBSITE):
             task = WebsiteTask()
         else:
-            print interpretation
+            print(interpretation)
             sys.exit()
             task = Task()
 

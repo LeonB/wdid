@@ -1,7 +1,9 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # http://bloc.eurion.net/archives/2012/zeitgeist-python-api-tutorial/
 # http://eurion.net/zeitgeist/docs/0.8.2/client.html
+# https://lazka.github.io/pgi-docs/#Zeitgeist-2.0
+# https://github.com/GNOME/gedit-plugins/blob/master/plugins/dashboard/dashboard/dashboard.py
 
 from wdid.app import App
 from wdid.lib import parse_datetime_range

@@ -1,4 +1,6 @@
-from zeitgeist.datamodel import *
+import gi
+gi.require_version('Zeitgeist', '2.0')
+from gi.repository import Zeitgeist
 import os
 
 project_directories = [
@@ -9,9 +11,15 @@ project_directories = [
 ]
 
 templates = [
-    Event.new_for_values(subject_interpretation=Interpretation.DOCUMENT),
-    Event.new_for_values(subject_interpretation=Interpretation.WEBSITE)
+    # Zeitgeist.Event.full(Zeitgeist.DOCUMENT),
+    # Zeitgeist.Event.full(Zeitgeist.WEBSITE)
 ]
+
+e1 = Zeitgeist.Event()
+e1.props.interpretation = Zeitgeist.DOCUMENT
+e2 = Zeitgeist.Event()
+e2.props.interpretation = Zeitgeist.WEBSITE
+templates = [e1, e2]
 
 minimum_duration = 2 * 60
 max_difference_between_tasks = 5 * 60

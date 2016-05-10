@@ -1,5 +1,9 @@
-from zeitgeist.client import ZeitgeistClient
-from zeitgeist.datamodel import *
+# from zeitgeist.client import ZeitgeistClient
+# from zeitgeist.datamodel import *
+import gi
+gi.require_version('Zeitgeist', '2.0')
+from gi.repository import Zeitgeist
+
 import sys
 import time
 import os
@@ -7,6 +11,7 @@ from wdid.task import Task
 from wdid.lib.prettytable import PrettyTable
 import wdid.config
 import datetime as dt
+from operator import attrgetter
 
 class App:
 
@@ -17,27 +22,41 @@ class App:
     website_events = None
 
     def list(self, start_time, end_time):
-        zeitgeist = ZeitgeistClient()
+        log = Zeitgeist.Log.get_default()
+        tr = Zeitgeist.TimeRange.new(start_time, end_time)
 
         # Find all document events
-        zeitgeist.find_events_for_templates(
-                [wdid.config.templates[0]],
-                self.on_document_events_received,
-                num_events=0,
-                timerange=TimeRange(start_time, end_time),
-                result_type=ResultType.LeastRecentEvents
-        )
-        # Find all website events
-        zeitgeist.find_events_for_templates(
-                [wdid.config.templates[1]],
-                self.on_website_events_received,
-                num_events=0,
-                timerange=TimeRange(start_time, end_time),
-                result_type=ResultType.LeastRecentEvents
+        log.find_events(
+            tr,
+            [wdid.config.templates[0]],
+            Zeitgeist.StorageState.ANY,
+            0,
+            Zeitgeist.ResultType.LEAST_RECENT_EVENTS,
+            None,
+            self.on_document_events_received,
+            None
         )
 
-    def on_document_events_received(self, events):
-        self.document_events = events
+        # Find all website events
+        log.find_events(
+            Zeitgeist.TimeRange.anytime(),
+            [wdid.config.templates[1]],
+            Zeitgeist.StorageState.ANY,
+            0,
+            Zeitgeist.ResultType.LEAST_RECENT_EVENTS,
+            None,
+            self.on_website_events_received,
+            None
+        )
+
+    # def on_document_events_received(self, events):
+    def on_document_events_received(self, source_object, result, user_data):
+        result_set = source_object.find_events_finish(result)
+
+        self.document_events = []
+        for i in range(result_set.size()):
+            event = events.next_value()
+            self.document_events.append(event)
 
         if self.document_events != None and self.website_events != None:
             tasks = self.process_events()
@@ -46,8 +65,13 @@ class App:
             # Stop the program
             sys.exit()
 
-    def on_website_events_received(self, events):
-        self.website_events = events
+    def on_website_events_received(self, source_object, result, user_data):
+        result_set = source_object.find_events_finish(result)
+
+        self.website_events = []
+        for i in range(result_set.size()):
+            event = events.next_value()
+            self.website_events.append(event)
 
         if self.document_events != None and self.website_events != None:
             tasks = self.process_events()
@@ -108,13 +132,11 @@ class App:
             total_duration
         ])
 
-        print t
+        print(t)
 
     def merge_tasks(self, tasks1, tasks2):
         tasks = tasks1 + tasks2
-        tasks.sort(
-                cmp=lambda x,y: cmp(x.start_time, y.start_time),
-                )
+        tasks = sorted(tasks, key=attrgetter('start_time'))
         return tasks
 
     def combine_tasks_based_on_project(self, tasks):
